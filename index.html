@@ -138,6 +138,7 @@
         </div>
     </div>
 
+    <script src="storage.js"></script>
     <script>
         // ... (此处保持之前发送给你的 JavaScript 逻辑不变) ...
         // 包含 getStorageKey, saveAllData, loadDayData, renderTaskItem, 
@@ -165,14 +166,17 @@
                 mood: mood
             };
 
-            localStorage.setItem(getStorageKey(selectedDate), JSON.stringify(dayData));
+            window.storageService.saveItem(getStorageKey(selectedDate), dayData);
             initCalendar();
             updateStats();
         }
 
         function loadDayData(date) {
             selectedDate = date;
-            const data = JSON.parse(localStorage.getItem(getStorageKey(date)) || '{"tasks":[],"note":"","status":"planned","mood":""}');
+            const data = window.storageService.loadItem(
+                getStorageKey(date),
+                {"tasks":[],"note":"","status":"planned","mood":""}
+            );
             const container = document.getElementById('tasks-container');
             container.innerHTML = '';
             data.tasks.forEach(t => renderTaskItem(t.text, t.done));
@@ -210,6 +214,7 @@
             const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
             let row = document.createElement('tr');
             for (let i = 0; i < firstDay; i++) row.appendChild(document.createElement('td'));
+            const state = window.storageService.loadState();
             for (let day = 1; day <= daysInMonth; day++) {
                 if ((day + firstDay - 1) % 7 === 0 && day !== 1) { body.appendChild(row); row = document.createElement('tr'); }
                 const td = document.createElement('td');
@@ -217,9 +222,9 @@
                 td.innerText = day;
                 if(dateObj.toDateString() === selectedDate.toDateString()) td.className = 'selected-day';
                 if(dateObj.toDateString() === new Date().toDateString()) td.classList.add('current-day');
-                const saved = localStorage.getItem(getStorageKey(dateObj));
+                const saved = state[getStorageKey(dateObj)];
                 if (saved) {
-                    td.classList.add(`status-${JSON.parse(saved).status}`);
+                    td.classList.add(`status-${saved.status}`);
                     const dot = document.createElement('div');
                     dot.className = 'day-status';
                     td.appendChild(dot);
@@ -239,9 +244,10 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
             const days = new Date(year, month, 0).getDate();
+            const state = window.storageService.loadState();
             for (let d = 1; d <= days; d++) {
-                const data = localStorage.getItem(`study_data_${year}_${month}_${d}`);
-                if (data && JSON.parse(data).status === 'completed') completed++;
+                const data = state[`study_data_${year}_${month}_${d}`];
+                if (data && data.status === 'completed') completed++;
             }
             document.getElementById('month-stats').innerHTML = `本月打卡天数: <strong>${completed}</strong> 天`;
         }
