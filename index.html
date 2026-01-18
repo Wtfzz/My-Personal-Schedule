@@ -135,6 +135,7 @@
         </div>
     </div>
 
+    <script src="storage.js"></script>
     <script>
         // ... (此处保持之前发送给你的 JavaScript 逻辑不变) ...
         // 包含 getStorageKey, saveAllData, loadDayData, renderTaskItem, 
@@ -143,8 +144,6 @@
         let currentDate = new Date();
         let selectedDate = new Date();
         let mood = "";
-
-        const getStorageKey = (date) => `study_data_${date.getFullYear()}_${date.getMonth() + 1}_${date.getDate()}`;
 
         function saveAllData(isSilent = true) {
             const tasks = [];
@@ -162,14 +161,16 @@
                 mood: mood
             };
 
-            localStorage.setItem(getStorageKey(selectedDate), JSON.stringify(dayData));
+            // 使用 storage.js 中的 saveDayData 函数
+            saveDayData(selectedDate, dayData);
             initCalendar();
             updateStats();
         }
 
         function loadDayData(date) {
             selectedDate = date;
-            const data = JSON.parse(localStorage.getItem(getStorageKey(date)) || '{"tasks":[],"note":"","status":"planned","mood":""}');
+            // 使用 storage.js 中的 getDayData 函数
+            const data = getDayData(date);
             const container = document.getElementById('tasks-container');
             container.innerHTML = '';
             data.tasks.forEach(t => renderTaskItem(t.text, t.done));
@@ -214,9 +215,10 @@
                 td.innerText = day;
                 if(dateObj.toDateString() === selectedDate.toDateString()) td.className = 'selected-day';
                 if(dateObj.toDateString() === new Date().toDateString()) td.classList.add('current-day');
-                const saved = localStorage.getItem(getStorageKey(dateObj));
-                if (saved) {
-                    td.classList.add(`status-${JSON.parse(saved).status}`);
+                // 使用 storage.js 中的 hasDayData 和 getDayData 函数
+                if (hasDayData(dateObj)) {
+                    const dayData = getDayData(dateObj);
+                    td.classList.add(`status-${dayData.status}`);
                     const dot = document.createElement('div');
                     dot.className = 'day-status';
                     td.appendChild(dot);
@@ -236,9 +238,11 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
             const days = new Date(year, month, 0).getDate();
+            // 使用 storage.js 中的 getDayData 函数
             for (let d = 1; d <= days; d++) {
-                const data = localStorage.getItem(`study_data_${year}_${month}_${d}`);
-                if (data && JSON.parse(data).status === 'completed') completed++;
+                const dateObj = new Date(year, month - 1, d);
+                const data = getDayData(dateObj);
+                if (data && data.status === 'completed') completed++;
             }
             document.getElementById('month-stats').innerHTML = `本月打卡天数: <strong>${completed}</strong> 天`;
         }
