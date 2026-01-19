@@ -152,6 +152,46 @@ function exportStateToJSON() {
 }
 
 /**
+ * 校验导入的完整状态
+ * @param {Object} state - 导入的数据对象
+ * @returns {{valid: boolean, error?: string}} 校验结果
+ */
+function validateImportedState(state) {
+    if (!state || typeof state !== 'object' || Array.isArray(state)) {
+        return { valid: false, error: '导入内容必须是对象结构。' };
+    }
+
+    const keys = Object.keys(state);
+    if (keys.length === 0) {
+        return { valid: false, error: '导入内容为空。' };
+    }
+
+    for (const key of keys) {
+        if (!key.startsWith('study_data_')) {
+            return { valid: false, error: `无效的日期 key：${key}` };
+        }
+        const value = state[key];
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return { valid: false, error: `日期数据格式错误：${key}` };
+        }
+        if (!Array.isArray(value.tasks)) {
+            return { valid: false, error: `缺少 tasks 或格式错误：${key}` };
+        }
+        if (typeof value.note !== 'string') {
+            return { valid: false, error: `缺少 note 或格式错误：${key}` };
+        }
+        if (typeof value.status !== 'string') {
+            return { valid: false, error: `缺少 status 或格式错误：${key}` };
+        }
+        if (typeof value.mood !== 'string') {
+            return { valid: false, error: `缺少 mood 或格式错误：${key}` };
+        }
+    }
+
+    return { valid: true };
+}
+
+/**
  * 从 JSON 字符串导入状态
  * @param {string} jsonString - JSON 字符串
  * @param {string} mode - 导入模式："merge"（合并）或 "replace"（替换）
@@ -159,12 +199,16 @@ function exportStateToJSON() {
 function importStateFromJSON(jsonString, mode = "replace") {
     try {
         const importedState = JSON.parse(jsonString);
+        const validation = validateImportedState(importedState);
+        if (!validation.valid) {
+            throw new Error(validation.error || '导入内容格式不正确。');
+        }
         
         if (mode === "replace") {
             // 替换模式：清空所有数据，导入新数据
             saveState(importedState);
         } else if (mode === "merge") {
-            // 合并模式：保留现有数据，导入的数据覆盖相同 key
+            // 合并模式：保留现有数据，导入的数据覆盖相同 key（以导入数据为准）
             const currentState = loadState();
             const mergedState = { ...currentState, ...importedState };
             saveState(mergedState);

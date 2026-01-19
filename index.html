@@ -95,6 +95,9 @@
 
         .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .mood-btns span { cursor: pointer; font-size: 1.2em; margin-right: 5px; }
+        .backup-actions { display: flex; gap: 8px; margin-left: auto; }
+        .action-btn { background: var(--primary-color); color: #003c35; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 14px; }
+        .action-btn.secondary { background: #e8fffc; color: #007a6b; border: 1px solid #b7f2eb; }
     </style>
 </head>
 <body>
@@ -133,6 +136,11 @@
                     <span onclick="setMood('🙁')">🙁</span>
                 </div>
                 <span id="day-mood-display" style="font-size: 14px;">今日心情: -</span>
+                <div class="backup-actions">
+                    <button class="action-btn secondary" type="button" onclick="exportBackup()">导出备份</button>
+                    <button class="action-btn" type="button" onclick="triggerImport()">导入备份</button>
+                    <input id="backup-file-input" type="file" accept="application/json" style="display:none" onchange="handleBackupFile(event)">
+                </div>
             </div>
             <textarea id="markdown-editor" placeholder="在此记录今日心得..."></textarea>
         </div>
@@ -248,6 +256,57 @@
                 if (data && data.status === 'completed') completed++;
             }
             document.getElementById('month-stats').innerHTML = `本月打卡天数: <strong>${completed}</strong> 天`;
+        }
+
+        function exportBackup() {
+            const dataStr = exportStateToJSON();
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'steps-backup.json';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerImport() {
+            const fileInput = document.getElementById('backup-file-input');
+            fileInput.value = '';
+            fileInput.click();
+        }
+
+        function handleBackupFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const content = reader.result;
+                if (typeof content !== 'string' || !content.trim()) {
+                    alert('导入内容为空。');
+                    return;
+                }
+
+                const isReplace = window.confirm('选择导入方式：\n确定 = 覆盖（replace）\n取消 = 合并（merge，导入数据优先）');
+                const mode = isReplace ? 'replace' : 'merge';
+
+                try {
+                    importStateFromJSON(content, mode);
+                    loadDayData(selectedDate);
+                    updateStats();
+                    alert('导入成功，数据已更新。');
+                } catch (error) {
+                    alert(`导入失败：${error.message || '请检查文件格式。'}`);
+                }
+            };
+            reader.onerror = () => {
+                alert('读取文件失败，请重试。');
+            };
+            reader.readAsText(file);
         }
 
         window.onload = () => {
